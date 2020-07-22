@@ -3,15 +3,14 @@ class Relay extends EventTarget{
         super();
         this.onMessage = new Event('message');
         this.user = {};
+        this.scriptUrl = new URL(import.meta.url);
         this.loginPromise = new Promise((resolve) => this.loginPromiseResolve = resolve);
         this.ready = new Promise(resolve => this.readyPromiseResolve = resolve)
         this.connect();
-
     }
 
     async connect(){
-        const scriptUrl = new URL(import.meta.url);
-        this.socket = new WebSocket((scriptUrl.protocol.startsWith("https") ? "wss://" : "ws://") + scriptUrl.host);
+        this.socket = new WebSocket((this.scriptUrl.protocol.startsWith("https") ? "wss://" : "ws://") + this.scriptUrl.host);
         
         this.socket.addEventListener('open', (event) => {
             this.readyPromiseResolve(this)
@@ -92,7 +91,7 @@ class Relay extends EventTarget{
             input: args || {}
         }
 
-        let messages = (await (await fetch('/graphql', {
+        let messages = (await (await fetch(`${this.scriptUrl.origin}/graphql`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
