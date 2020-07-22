@@ -1,6 +1,6 @@
 {
   "name": "relay-client",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "main": "client.mjs",
   "repository": "palantus/relay-client",
   "License": "MIT",
@@ -8,7 +8,6 @@
   "engines": {
     "node": ">=7.0.0"
   },
-  "dependencies": {
-  },
+  "dependencies": {},
   "type": "module"
 }

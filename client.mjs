@@ -3,46 +3,48 @@ class Relay extends EventTarget{
         super();
         this.onMessage = new Event('message');
         this.user = {};
-        this.connect();
         this.loginPromise = new Promise((resolve) => this.loginPromiseResolve = resolve);
+        this.ready = new Promise(resolve => this.readyPromiseResolve = resolve)
+        this.connect();
+
     }
 
     async connect(){
-        this.socket = new WebSocket((location.protocol.startsWith("https") ? "wss://" : "ws://") + location.host);
-        this.ready = new Promise(readyResolve => {
-            this.socket.addEventListener('open', (event) => {
-                readyResolve(this)
-                this.dispatchEvent(new CustomEvent('connected'))
-            });
+        const scriptUrl = new URL(import.meta.url);
+        this.socket = new WebSocket((scriptUrl.protocol.startsWith("https") ? "wss://" : "ws://") + scriptUrl.host);
+        
+        this.socket.addEventListener('open', (event) => {
+            this.readyPromiseResolve(this)
+            this.dispatchEvent(new CustomEvent('connected'))
+        });
 
-            // Listen for messages
-            this.socket.addEventListener('message', (event) => {
-                let msg = JSON.parse(event.data)
-                switch(msg.type){
-                    case "status":
-                        this.statusReceived(msg.content)
-                        break;
-                    case "message":
-                        this.dispatchEvent(new CustomEvent('message', { detail: msg.content }))
-                        break;
-                    case "error":
-                        this.dispatchEvent(new CustomEvent('error', { detail: msg.content }))
-                        break;
-                    default:
-                        console.log('Unknown message from server', event.data);
-                }
-                
-            });
+        // Listen for messages
+        this.socket.addEventListener('message', (event) => {
+            let msg = JSON.parse(event.data)
+            switch(msg.type){
+                case "status":
+                    this.statusReceived(msg.content)
+                    break;
+                case "message":
+                    this.dispatchEvent(new CustomEvent('message', { detail: msg.content }))
+                    break;
+                case "error":
+                    this.dispatchEvent(new CustomEvent('error', { detail: msg.content }))
+                    break;
+                default:
+                    console.log('Unknown message from server', event.data);
+            }
             
-            this.socket.addEventListener('close', (event) => {
-                console.log("Connection closed. Attempting reconnect...")
-                this.dispatchEvent(new CustomEvent('disconnected'))
-                this.connect()
-            })
-            
-            this.socket.addEventListener('error', (...error) => {
-                console.log.apply(null, error)
-            })
+        });
+        
+        this.socket.addEventListener('close', (event) => {
+            console.log("Connection closed. Attempting reconnect...")
+            this.dispatchEvent(new CustomEvent('disconnected'))
+            this.connect()
+        })
+        
+        this.socket.addEventListener('error', (...error) => {
+            console.log.apply(null, error)
         })
     }
 
