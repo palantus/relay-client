@@ -5,7 +5,8 @@ class Relay extends EventTarget{
     this.user = {};
     this.scriptUrl = new URL(import.meta.url);
     this.loginPromise = new Promise((resolve) => this.loginPromiseResolve = resolve);
-    this.ready = new Promise(resolve => this.readyPromiseResolve = resolve)
+    this.ready = new Promise(resolve => this.readyPromiseResolve = resolve);
+    this.userDefined = new Promise(resolve => this.userDefinedPromiseResolve = resolve);
     this.connect();
   }
 
@@ -47,12 +48,13 @@ class Relay extends EventTarget{
   }
 
   async login(user){
-    await this.ready;
     if(typeof user === "string")
         user = {id: user}
     if(!user.id)
         throw "ERROR: no user id provided for relay login"
     this.user = user;
+    this.userDefinedPromiseResolve(this)
+    await this.ready;
     this.socket.send(JSON.stringify({type: "login", content: user}))
     return await this.loginPromise
   }
@@ -72,7 +74,7 @@ class Relay extends EventTarget{
     this.socket.send(JSON.stringify({type: "message", content: {channel, content: typeof content === "string" ? content : JSON.stringify(content), participants}}))
   }
   async getMessages(args){
-    await this.loginPromise
+    await this.userDefined
     let query = `query getMessages($userId:String!, $key:String, $input:MessageSearchArgsType) {
             user(id:$userId, key: $key){
             id
