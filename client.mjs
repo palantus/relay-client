@@ -1,21 +1,37 @@
-class Relay extends EventTarget{
-  constructor(){
-    super();
-    this.onMessage = new Event('message');
+class Relay{
+  constructor(fetcher, WebSocketClass){
     this.user = {};
-    this.scriptUrl = new URL(import.meta.url);
     this.loginPromise = new Promise((resolve) => this.loginPromiseResolve = resolve);
     this.ready = new Promise(resolve => this.readyPromiseResolve = resolve);
     this.userDefined = new Promise(resolve => this.userDefinedPromiseResolve = resolve);
-    this.connect();
+    this.listeners = {}
+    this.fetcher = fetcher || fetch
+    this.WebSocketClass = WebSocketClass || WebSocket
   }
 
-  async connect(){
-    this.socket = new WebSocket((this.scriptUrl.protocol.startsWith("https") ? "wss://" : "ws://") + this.scriptUrl.host);
+  async addEventListener(type, listener){
+    if(this.listeners[type])
+      this.listeners[type].push(listener)
+    else
+      this.listeners[type] = [listener]
+  }
+
+  async dispatchEvent(type, data){
+    if(!this.listeners[type])
+      return;
+
+      for(let listener of this.listeners[type]){
+        listener(data)
+      }
+  }
+
+  async connect(url){
+    this.scriptUrl = new URL(url || import.meta.url);
+    this.socket = new this.WebSocketClass((this.scriptUrl.protocol.startsWith("https") ? "wss://" : "ws://") + this.scriptUrl.host);
     
     this.socket.addEventListener('open', (event) => {
       this.readyPromiseResolve(this)
-      this.dispatchEvent(new CustomEvent('connected'))
+      this.dispatchEvent('connected')
     });
 
     // Listen for messages
@@ -26,10 +42,10 @@ class Relay extends EventTarget{
           this.statusReceived(msg.content)
           break;
         case "message":
-          this.dispatchEvent(new CustomEvent('message', { detail: msg.content }))
+          this.dispatchEvent('message', { detail: msg.content })
           break;
         case "error":
-          this.dispatchEvent(new CustomEvent('error', { detail: msg.content }))
+          this.dispatchEvent('error', { detail: msg.content })
           break;
         default:
           console.log('Unknown message from server', event.data);
@@ -38,7 +54,7 @@ class Relay extends EventTarget{
     
     this.socket.addEventListener('close', (event) => {
       console.log("Connection closed. Attempting reconnect...")
-      this.dispatchEvent(new CustomEvent('disconnected'))
+      this.dispatchEvent('disconnected')
       this.connect()
     })
     
@@ -63,7 +79,7 @@ class Relay extends EventTarget{
     switch(status){
       case "loggedin":
         Object.assign(this.user, user);
-        this.dispatchEvent(new CustomEvent('loggedin', { detail: {user} }))
+        this.dispatchEvent('loggedin', { detail: {user} })
         this.loginPromiseResolve(this.user);
         break;
     }
@@ -94,7 +110,7 @@ class Relay extends EventTarget{
       input: args || {}
     }
 
-    let messages = (await (await fetch(`${this.scriptUrl.origin}/graphql`, {
+    let res = (await (await this.fetcher(`${this.scriptUrl.origin}/graphql`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -104,11 +120,12 @@ class Relay extends EventTarget{
           query,
           variables,
         })
-      })).json()).data.user.messages
+      })).json()).data;
+
+    let messages = res.user.messages
 
     return messages
   }
 }
 
-let relay = new Relay();
-export default relay;
+export default Relay;
