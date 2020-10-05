@@ -10,3 +10,10 @@ relay.connect("https://example.com")
 relay.login({id: "username", key: "password"})
 relay.addEventListener("loggedin", (data) => console.log("logged in", data))
 ```
+
+Events:
+- connected
+- disconnected
+- loggedin
+- message
+- error
