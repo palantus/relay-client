@@ -26,10 +26,14 @@ class Relay{
   }
 
   async connect(url){
-    this.scriptUrl = new URL(url || import.meta.url);
+    this.scriptUrl = new URL(url || this.scriptUrl || import.meta.url);
     this.socket = new this.WebSocketClass((this.scriptUrl.protocol.startsWith("https") ? "wss://" : "ws://") + this.scriptUrl.host);
     
     this.socket.addEventListener('open', (event) => {
+      if(this.user.id){
+        this.login(this.user)
+      }
+
       this.readyPromiseResolve(this)
       this.dispatchEvent('connected')
     });
@@ -52,10 +56,12 @@ class Relay{
       }
     });
     
-    this.socket.addEventListener('close', (event) => {
+    this.socket.addEventListener('close', async (event) => {
+      this.ready = new Promise(resolve => this.readyPromiseResolve = resolve);
+      this.loginPromise = new Promise((resolve) => this.loginPromiseResolve = resolve);
       console.log("Connection closed. Attempting reconnect...")
       this.dispatchEvent('disconnected')
-      this.connect()
+      await this.connect()
     })
     
     this.socket.addEventListener('error', (...error) => {
@@ -68,9 +74,9 @@ class Relay{
         user = {id: user}
     if(!user.id)
         throw "ERROR: no user id provided for relay login"
+    await this.ready;
     this.user = user;
     this.userDefinedPromiseResolve(this)
-    await this.ready;
     this.socket.send(JSON.stringify({type: "login", content: user}))
     return await this.loginPromise
   }
