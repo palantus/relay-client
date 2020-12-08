@@ -67,6 +67,8 @@ class Relay{
     this.socket.addEventListener('error', (...error) => {
       console.log.apply(null, error)
     })
+
+    return this.ready
   }
 
   async login(user){
