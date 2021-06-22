@@ -66,6 +66,9 @@ class Relay{
     
     this.socket.addEventListener('error', (...error) => {
       console.log.apply(null, error)
+      console.log("Caught an error. Attempting reconnect...")
+      this.dispatchEvent('disconnected')
+      await this.connect()
     })
 
     return this.ready
@@ -107,7 +110,8 @@ class Relay{
                 userId
                 channel
                 content
-                timestamp
+                timestamp,
+                isRead
             }
         }
     }`;
