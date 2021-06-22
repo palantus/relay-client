@@ -64,7 +64,7 @@ class Relay{
       await this.connect()
     })
     
-    this.socket.addEventListener('error', (...error) => {
+    this.socket.addEventListener('error', async (...error) => {
       console.log.apply(null, error)
       console.log("Caught an error. Attempting reconnect...")
       this.dispatchEvent('disconnected')
