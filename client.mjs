@@ -8,12 +8,17 @@ class Relay{
     this.fetcher = fetcher || fetch
     this.WebSocketClass = WebSocketClass || WebSocket
     this.heartbeat = this.heartbeat.bind(this)
-    this.addEventListener("disconnected", () => {
-      this.socket?.terminate();
+    this.addEventListener("internal_disconnected", async () => {
+      if(this.isClosed === true) return; //Already handled
+      this.isClosed = true;
+      this.dispatchEvent('disconnected')
+      await new Promise(r => setTimeout(r, 1)); //Make sure all other event handlers have been fired before this one
       clearTimeout(this.pingTimeout);
       this.ready = new Promise(resolve => this.readyPromiseResolve = resolve);
       this.loginPromise = new Promise((resolve) => this.loginPromiseResolve = resolve);
-      console.log("Connection closed. Attempting reconnect...")
+      console.log("Connection closed. Attempting reconnect in 3 sec...")
+      await new Promise(r => setTimeout(r, 3000)); //Make sure all other event handlers have been fired before this one
+      this.isClosed = false;
       this.connect()
     })
   }
@@ -81,12 +86,13 @@ class Relay{
     });
     
     this.socket.addEventListener('close', async (event) => {
-      this.dispatchEvent('disconnected')
+      this.dispatchEvent('internal_disconnected')
     })
     
     this.socket.addEventListener('error', async (...error) => {
-      console.log.apply(null, error)
-      this.dispatchEvent('disconnected')
+      console.log.apply(null, error?.message ? {message: error.message, error: error.error} : error)
+      this.socket?.terminate();
+      this.dispatchEvent('internal_disconnected')
     })
 
     this.socket.addEventListener('ping', this.heartbeat);
