@@ -7,6 +7,16 @@ class Relay{
     this.listeners = {}
     this.fetcher = fetcher || fetch
     this.WebSocketClass = WebSocketClass || WebSocket
+    this.heartbeat = this.heartbeat.bind(this)
+    this.addEventListener("disconnected", () => {
+      this.socket?.terminate();
+      clearTimeout(this.pingTimeout);
+      this.user = {}
+      this.ready = new Promise(resolve => this.readyPromiseResolve = resolve);
+      this.loginPromise = new Promise((resolve) => this.loginPromiseResolve = resolve);
+      console.log("Connection closed. Attempting reconnect...")
+      this.connect()
+    })
   }
 
   async addEventListener(type, listener){
@@ -25,11 +35,25 @@ class Relay{
       }
   }
 
+  heartbeat(){
+    clearTimeout(this.pingTimeout);
+
+    // Use `WebSocket#terminate()`, which immediately destroys the connection,
+    // instead of `WebSocket#close()`, which waits for the close timer.
+    // Delay should be equal to the interval at which your server
+    // sends out pings plus a conservative assumption of the latency.
+    this.pingTimeout = setTimeout(() => {
+      this.terminate();
+    }, 30000 + 1000);
+  }
+
   async connect(url){
     this.scriptUrl = new URL(url || this.scriptUrl || import.meta.url);
     this.socket = new this.WebSocketClass((this.scriptUrl.protocol.startsWith("https") ? "wss://" : "ws://") + this.scriptUrl.host);
     
     this.socket.addEventListener('open', (event) => {
+      this.heartbeat();
+
       if(this.user.id){
         this.login(this.user)
       }
@@ -57,19 +81,15 @@ class Relay{
     });
     
     this.socket.addEventListener('close', async (event) => {
-      this.ready = new Promise(resolve => this.readyPromiseResolve = resolve);
-      this.loginPromise = new Promise((resolve) => this.loginPromiseResolve = resolve);
-      console.log("Connection closed. Attempting reconnect...")
       this.dispatchEvent('disconnected')
-      await this.connect()
     })
     
     this.socket.addEventListener('error', async (...error) => {
       console.log.apply(null, error)
-      console.log("Caught an error. Attempting reconnect...")
       this.dispatchEvent('disconnected')
-      await this.connect()
     })
+
+    this.socket.addEventListener('ping', this.heartbeat);
 
     return this.ready
   }
