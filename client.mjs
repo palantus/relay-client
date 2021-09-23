@@ -11,7 +11,6 @@ class Relay{
     this.addEventListener("disconnected", () => {
       this.socket?.terminate();
       clearTimeout(this.pingTimeout);
-      this.user = {}
       this.ready = new Promise(resolve => this.readyPromiseResolve = resolve);
       this.loginPromise = new Promise((resolve) => this.loginPromiseResolve = resolve);
       console.log("Connection closed. Attempting reconnect...")
@@ -43,7 +42,8 @@ class Relay{
     // Delay should be equal to the interval at which your server
     // sends out pings plus a conservative assumption of the latency.
     this.pingTimeout = setTimeout(() => {
-      this.terminate();
+      console.log("Ping timeout")
+      this.socket?.terminate();
     }, 30000 + 1000);
   }
 
